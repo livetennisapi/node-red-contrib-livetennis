@@ -1,0 +1,62 @@
+[
+    {
+        "id": "lt-comment",
+        "type": "comment",
+        "name": "Live Tennis API quickstart",
+        "info": "Polls the Live Tennis API for live matches every 2 minutes and prints the flattened match list to the debug sidebar.\n\n1. Double-click the `live matches` node and add your API key to the Live Tennis API configuration (free key, no card: https://livetennisapi.com/subscribe/free).\n2. Deploy — the debug sidebar shows an array of matches with p1_name/p2_name, sets, games, points (strings!) and server.\n\nThe 2-minute interval (720 requests/day) stays inside the free tier's 1000/day cap.",
+        "x": 160,
+        "y": 40,
+        "wires": []
+    },
+    {
+        "id": "lt-inject",
+        "type": "inject",
+        "name": "every 2 min",
+        "props": [{ "p": "payload" }],
+        "repeat": "120",
+        "crontab": "",
+        "once": true,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 140,
+        "y": 100,
+        "wires": [["lt-query"]]
+    },
+    {
+        "id": "lt-query",
+        "type": "live tennis",
+        "name": "live matches",
+        "server": "lt-config",
+        "operation": "live",
+        "tour": "",
+        "limit": "20",
+        "matchId": "",
+        "playerId": "",
+        "search": "",
+        "x": 340,
+        "y": 100,
+        "wires": [["lt-debug"]]
+    },
+    {
+        "id": "lt-debug",
+        "type": "debug",
+        "name": "matches",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "x": 540,
+        "y": 100,
+        "wires": []
+    },
+    {
+        "id": "lt-config",
+        "type": "livetennis-config",
+        "name": "Live Tennis API",
+        "baseUrl": "https://api.livetennisapi.com/api/public/v1"
+    }
+]
