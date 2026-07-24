@@ -1,0 +1,151 @@
+<script type="text/javascript">
+    RED.nodes.registerType("live tennis", {
+        category: "network",
+        color: "#D8E44E",
+        icon: "live-tennis.svg",
+        paletteLabel: "live tennis",
+        inputs: 1,
+        outputs: 1,
+        defaults: {
+            name: { value: "" },
+            server: { value: "", type: "livetennis-config", required: true },
+            operation: { value: "live", required: true },
+            tour: { value: "" },
+            limit: { value: "", validate: RED.validators.number(true) },
+            matchId: { value: "", validate: RED.validators.number(true) },
+            playerId: { value: "", validate: RED.validators.number(true) },
+            search: { value: "" }
+        },
+        label: function () {
+            return this.name || "live tennis: " + (this.operation || "live");
+        },
+        oneditprepare: function () {
+            // show only the parameter rows that apply to the chosen operation
+            const rows = {
+                tour: ["live", "upcoming", "completed", "fixtures"],
+                limit: ["live", "upcoming", "completed", "player_search", "fixtures"],
+                matchId: ["match", "score"],
+                playerId: ["player"],
+                search: ["player_search"]
+            };
+            function refresh() {
+                const op = $("#node-input-operation").val();
+                Object.keys(rows).forEach(function (field) {
+                    $("#form-row-" + field).toggle(rows[field].indexOf(op) !== -1);
+                });
+            }
+            $("#node-input-operation").on("change", refresh);
+            refresh();
+        }
+    });
+</script>
+
+<script type="text/html" data-template-name="live tennis">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-server"><i class="fa fa-key"></i> API</label>
+        <input type="text" id="node-input-server">
+    </div>
+    <div class="form-row">
+        <label for="node-input-operation"><i class="fa fa-list"></i> Operation</label>
+        <select id="node-input-operation" style="width:70%">
+            <option value="live">Live matches</option>
+            <option value="upcoming">Upcoming matches</option>
+            <option value="completed">Completed matches</option>
+            <option value="match">Match by id</option>
+            <option value="score">Match score by id</option>
+            <option value="player_search">Player search</option>
+            <option value="player">Player by id</option>
+            <option value="fixtures">Fixtures</option>
+            <option value="health">API health</option>
+        </select>
+    </div>
+    <div class="form-row" id="form-row-tour">
+        <label for="node-input-tour"><i class="fa fa-filter"></i> Tour</label>
+        <select id="node-input-tour" style="width:70%">
+            <option value="">All tours</option>
+            <option value="atp">ATP</option>
+            <option value="wta">WTA</option>
+            <option value="challenger">Challenger</option>
+            <option value="itf">ITF</option>
+            <option value="juniors">Juniors</option>
+        </select>
+    </div>
+    <div class="form-row" id="form-row-limit">
+        <label for="node-input-limit"><i class="fa fa-sort-numeric-asc"></i> Limit</label>
+        <input type="text" id="node-input-limit" placeholder="50 (max 200)">
+    </div>
+    <div class="form-row" id="form-row-matchId">
+        <label for="node-input-matchId"><i class="fa fa-hashtag"></i> Match id</label>
+        <input type="text" id="node-input-matchId" placeholder="e.g. 12345">
+    </div>
+    <div class="form-row" id="form-row-playerId">
+        <label for="node-input-playerId"><i class="fa fa-hashtag"></i> Player id</label>
+        <input type="text" id="node-input-playerId" placeholder="e.g. 678">
+    </div>
+    <div class="form-row" id="form-row-search">
+        <label for="node-input-search"><i class="fa fa-search"></i> Search</label>
+        <input type="text" id="node-input-search" placeholder="player name, e.g. alcaraz">
+    </div>
+    <div class="form-tips">
+        <b>Tip:</b> every setting can be overridden per message — see the node help.
+    </div>
+</script>
+
+<script type="text/html" data-help-name="live tennis">
+    <p>Queries the <a href="https://livetennisapi.com">Live Tennis API</a> for live,
+       upcoming and completed matches, scores, players and fixtures across ATP, WTA,
+       Challenger, ITF and junior tours.</p>
+
+    <h3>Inputs</h3>
+    <dl class="message-properties">
+        <dt class="optional">topic <span class="property-type">string</span></dt>
+        <dd>overrides the configured operation: <code>live</code>, <code>upcoming</code>,
+            <code>completed</code>, <code>match</code>, <code>score</code>,
+            <code>player_search</code>, <code>player</code>, <code>fixtures</code>
+            or <code>health</code>.</dd>
+        <dt class="optional">payload <span class="property-type">object | number | string</span></dt>
+        <dd>an object may carry <code>operation</code>, <code>tour</code>,
+            <code>limit</code>, <code>offset</code>, <code>matchId</code>,
+            <code>playerId</code> or <code>search</code> to override the node
+            configuration. A bare number is used as the match/player id for the
+            <code>match</code>, <code>score</code> and <code>player</code>
+            operations; a bare string is the search text for
+            <code>player_search</code>.</dd>
+    </dl>
+
+    <h3>Outputs</h3>
+    <dl class="message-properties">
+        <dt>payload <span class="property-type">array | object</span></dt>
+        <dd>flattened result. List operations output an array; match rows are
+            flattened to <code>p1_name</code>, <code>p2_name</code>,
+            <code>sets_p1/p2</code>, <code>games_p1/p2</code> (per-set arrays),
+            <code>points_p1/p2</code>, <code>server</code> and so on.</dd>
+        <dt class="optional">meta <span class="property-type">object</span></dt>
+        <dd><code>{limit, offset, count}</code> on list operations.</dd>
+        <dt>operation <span class="property-type">string</span></dt>
+        <dd>the operation that produced this message.</dd>
+    </dl>
+
+    <h3>Details</h3>
+    <p>Authentication uses the API key from the referenced
+       <code>livetennis-config</code> node (stored in the Node-RED credential
+       store, never exported with the flow). A free key — 1000 requests/day,
+       30/minute, no card — is available at
+       <a href="https://livetennisapi.com/subscribe/free">livetennisapi.com/subscribe/free</a>.</p>
+    <p>Data facts worth knowing: <code>points_p1/p2</code> are <b>strings</b>
+       (<code>"0"</code>, <code>"15"</code>, <code>"40"</code>, <code>"A"</code>);
+       <code>server</code> may be <code>null</code> when the feed doesn't know who
+       serves; <code>score</code> fields are all <code>null</code> before a match
+       starts; <code>games_p1/p2</code> are per-set arrays that grow as sets are
+       played; on doubles, per-player biography (<code>data_completeness</code>)
+       is <code>null</code> by design; on lower tours <code>round</code> often
+       restates the tournament name; <code>fixtures</code> rows are name-only
+       (players not yet resolved to ids).</p>
+    <p>Failures are reported through <code>node.error</code> (catchable with a
+       <b>catch</b> node) with friendly messages: 401 bad key, 403 endpoint above
+       your plan tier, 429 rate limit (with retry hint).</p>
+</script>
