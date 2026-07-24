@@ -1,0 +1,45 @@
+<script type="text/javascript">
+    RED.nodes.registerType("livetennis-config", {
+        category: "config",
+        defaults: {
+            name: { value: "" },
+            baseUrl: { value: "https://api.livetennisapi.com/api/public/v1", required: true }
+        },
+        credentials: {
+            apiKey: { type: "password" }
+        },
+        label: function () {
+            return this.name || "Live Tennis API";
+        }
+    });
+</script>
+
+<script type="text/html" data-template-name="livetennis-config">
+    <div class="form-row">
+        <label for="node-config-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-config-input-name" placeholder="Live Tennis API">
+    </div>
+    <div class="form-row">
+        <label for="node-config-input-apiKey"><i class="fa fa-key"></i> API key</label>
+        <input type="password" id="node-config-input-apiKey" placeholder="your Live Tennis API key">
+    </div>
+    <div class="form-row">
+        <label for="node-config-input-baseUrl"><i class="fa fa-globe"></i> Base URL</label>
+        <input type="text" id="node-config-input-baseUrl" placeholder="https://api.livetennisapi.com/api/public/v1">
+    </div>
+    <div class="form-tips">
+        <b>Tip:</b> a free key (1000 requests/day, no card) is available at
+        <a href="https://livetennisapi.com/subscribe/free" target="_blank" rel="noopener">livetennisapi.com/subscribe/free</a>.
+        The key is stored in Node-RED's credential store and is never exported with the flow.
+    </div>
+</script>
+
+<script type="text/html" data-help-name="livetennis-config">
+    <p>Shared connection settings for the Live Tennis API.</p>
+    <h3>Details</h3>
+    <p>Holds the API key (in the Node-RED credential store, separate from the
+       flow file) and the API base URL. All <code>live tennis</code> nodes that
+       reference this configuration share it.</p>
+    <p>Sign up for a free key (1000 requests/day, 30/minute, no card) at
+       <a href="https://livetennisapi.com/subscribe/free">livetennisapi.com/subscribe/free</a>.</p>
+</script>
