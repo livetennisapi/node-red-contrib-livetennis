@@ -8,6 +8,7 @@ module.exports = [
             sourceType: "commonjs",
             globals: {
                 // Node.js
+                console: "readonly",
                 module: "readonly",
                 require: "readonly",
                 process: "readonly",
