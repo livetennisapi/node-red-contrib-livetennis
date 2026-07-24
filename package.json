@@ -1,5 +1,5 @@
 {
-  "name": "node-red-contrib-livetennis",
+  "name": "@livetennisapi/node-red-contrib-livetennis",
   "version": "0.1.0",
   "description": "Node-RED nodes for the Live Tennis API — live scores, matches, players and fixtures (ATP, WTA, Challenger, ITF, juniors)",
   "license": "MIT",
@@ -14,7 +14,12 @@
   ],
   "author": "Live Tennis API <hello@livetennisapi.com>",
   "homepage": "https://livetennisapi.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/livetennisapi/node-red-contrib-livetennis.git"
+  },
   "bugs": {
+    "url": "https://github.com/livetennisapi/node-red-contrib-livetennis/issues",
     "email": "hello@livetennisapi.com"
   },
   "engines": {

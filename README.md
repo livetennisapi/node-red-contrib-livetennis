@@ -1,4 +1,4 @@
-# node-red-contrib-livetennis
+# @livetennisapi/node-red-contrib-livetennis
 
 Node-RED nodes for the [Live Tennis API](https://livetennisapi.com) — real-time
 tennis scores, matches, players and fixtures across **ATP, WTA, Challenger, ITF
@@ -13,7 +13,7 @@ and junior** tours.
 From your Node-RED user directory (typically `~/.node-red`):
 
 ```bash
-npm install node-red-contrib-livetennis
+npm install @livetennisapi/node-red-contrib-livetennis
 ```
 
 or via the editor's *Manage palette* menu.
@@ -89,7 +89,7 @@ node. Messages are actionable:
 ## Example
 
 An importable example lives under *Import → Examples →
-node-red-contrib-livetennis* once the package is installed
+@livetennisapi/node-red-contrib-livetennis* once the package is installed
 (`examples/Live Tennis Quickstart.json`): an inject node polls `live` every
 2 minutes (720 req/day — inside the free tier) into a debug node.
 
@@ -121,11 +121,13 @@ Steps per <https://flows.nodered.org/add/node> (read 2026-07-24):
    `node-red` section listing the node files and `"node-red"` in `keywords`;
    a LICENSE file; `examples/` in the package root.
 2. **Naming:** nodered.org's packaging guide says packages first published
-   after 2022-01-31 *should use a scoped name* (e.g.
-   `@livetennisapi/node-red-livetennis`). This package currently uses the
-   classic unscoped `node-red-contrib-livetennis` form — decide before the
-   first `npm publish`, because the name cannot change afterwards.
-3. `npm publish` to the public npm registry.
+   after 2022-01-31 *should use a scoped name* — hence this package is
+   published as `@livetennisapi/node-red-contrib-livetennis` (the Flow
+   Library scorecard fails check P04 for new unscoped names). The name
+   cannot change after the first `npm publish`.
+3. `npm publish --access public` to the public npm registry (`--access public`
+   is required for the first publish of a scoped package, which defaults to
+   private).
 4. Sign in to <https://flows.nodered.org> with GitHub, click the **+** button
    at the top of the library page, choose **node**, and submit the npm package
    name. (Since April 2020 the library does **not** auto-index the `node-red`
