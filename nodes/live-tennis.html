@@ -54,7 +54,7 @@
         <select id="node-input-operation" style="width:70%">
             <option value="live">Live matches</option>
             <option value="upcoming">Upcoming matches</option>
-            <option value="completed">Completed matches</option>
+            <option value="completed">Completed matches (BASIC or any History plan)</option>
             <option value="match">Match by id</option>
             <option value="score">Match score by id</option>
             <option value="player_search">Player search</option>
@@ -145,7 +145,13 @@
        is <code>null</code> by design; on lower tours <code>round</code> often
        restates the tournament name; <code>fixtures</code> rows are name-only
        (players not yet resolved to ids).</p>
+    <p>Tiers: every operation except <code>completed</code> is on the FREE
+       tier. Bulk completed-match listings (<code>completed</code>) need the
+       BASIC tier ($9.99/mo) or any History plan — a FREE key gets a 403
+       <code>upgrade_required</code>. Fetching a single completed match by id
+       via <code>match</code> stays free.</p>
     <p>Failures are reported through <code>node.error</code> (catchable with a
        <b>catch</b> node) with friendly messages: 401 bad key, 403 endpoint above
-       your plan tier, 429 rate limit (with retry hint).</p>
+       your plan tier (with the upgrade link for <code>completed</code>),
+       429 rate limit (with retry hint).</p>
 </script>

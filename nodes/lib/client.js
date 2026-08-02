@@ -79,8 +79,12 @@ function buildRequest(operation, params, apiKey, baseUrl) {
     return { url: url.toString(), headers };
 }
 
-/** Map an HTTP failure to a friendly, actionable error. */
-function friendlyHttpError(status, bodyText, retryAfter) {
+/**
+ * Map an HTTP failure to a friendly, actionable error. The optional
+ * `operation` sharpens the 403: bulk completed paging is the only operation
+ * of this node gated behind a paid tier.
+ */
+function friendlyHttpError(status, bodyText, retryAfter, operation) {
     let body;
     try { body = JSON.parse(bodyText); } catch { body = undefined; }
     const apiError = body && body.error ? ` (${body.error})` : "";
@@ -91,6 +95,12 @@ function friendlyHttpError(status, bodyText, retryAfter) {
         );
     }
     if (status === 403) {
+        if (operation === "completed") {
+            return new LiveTennisError(
+                `Live Tennis API: Completed-match listings need the BASIC tier ($9.99/mo) or any History plan — upgrade at https://livetennisapi.com/subscribe/upgrade (403${apiError})`,
+                status, body
+            );
+        }
         return new LiveTennisError(
             `Live Tennis API: this endpoint is not included in your plan (403${apiError}). See https://livetennisapi.com/#pricing`,
             status, body
@@ -203,7 +213,7 @@ async function execute(operation, params, options) {
     }
     if (!res.ok) {
         const text = await res.text();
-        throw friendlyHttpError(res.status, text, res.headers && res.headers.get ? res.headers.get("retry-after") : null);
+        throw friendlyHttpError(res.status, text, res.headers && res.headers.get ? res.headers.get("retry-after") : null, operation);
     }
     const json = await res.json();
     return shapePayload(operation, json);

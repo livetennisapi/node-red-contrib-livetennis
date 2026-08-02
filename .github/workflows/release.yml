@@ -1,0 +1,57 @@
+# Publishes @livetennisapi/node-red-contrib-livetennis to npm on every v*.*.* tag,
+# with an npm provenance attestation (same pattern as livetennisapi/n8n-nodes-livetennisapi).
+#
+# Authentication — either of:
+#   A. OIDC Trusted Publishing (no long-lived secret): on npmjs.com, package
+#      settings → Trusted Publishers → GitHub Actions, repository
+#      livetennisapi/node-red-contrib-livetennis, workflow release.yml.
+#      Leave NPM_TOKEN unset.
+#   B. NPM_TOKEN repo secret (granular automation token with publish access
+#      to the @livetennisapi scope). Required for the FIRST publish if a
+#      trusted publisher cannot be configured before the package exists.
+#
+# The first publish of a scoped package must be public — hence --access public.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Required to mint the OIDC token for provenance / trusted publishing.
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      # OIDC trusted publishing needs npm >= 11.5.1 (node 22 bundles npm 10).
+      - name: Update npm
+        run: npm install --global npm@latest
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: Run tests
+        run: npm test
+
+      - name: Publish to npm
+        run: |
+          if [ -n "$NPM_TOKEN" ]; then
+            npm config set //registry.npmjs.org/:_authToken "$NPM_TOKEN"
+          fi
+          npm publish --provenance --access public
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

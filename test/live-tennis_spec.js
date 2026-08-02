@@ -86,6 +86,13 @@ describe("client (pure)", function () {
         assert.strictEqual(err.status, 403);
     });
 
+    it("maps a completed-listing 403 to the BASIC/History upgrade message", function () {
+        const err = client.friendlyHttpError(403, JSON.stringify(fixture("error_403_markets").body), null, "completed");
+        assert.match(err.message, /Completed-match listings need the BASIC tier \(\$9\.99\/mo\) or any History plan/);
+        assert.match(err.message, /https:\/\/livetennisapi\.com\/subscribe\/upgrade/);
+        assert.strictEqual(err.status, 403);
+    });
+
     it("maps 429 with a Retry-After hint", function () {
         const err = client.friendlyHttpError(429, "{}", "42");
         assert.match(err.message, /rate limit/);
@@ -162,6 +169,21 @@ describe("live tennis node", function () {
                 } catch (e) { done(e); }
             });
             n1.receive({ payload: 22227, topic: "score" });
+        });
+    });
+
+    it("reports the BASIC/History upgrade path on a completed-listing 403", function (done) {
+        helper.load([configNode, liveTennisNode], FLOW, CREDS, function () {
+            stubFetch(403, fixture("error_403_markets").body);
+            const n1 = helper.getNode("n1");
+            n1.on("call:error", function (call) {
+                try {
+                    assert.match(call.firstArg.message, /BASIC tier \(\$9\.99\/mo\) or any History plan/);
+                    assert.match(call.firstArg.message, /subscribe\/upgrade/);
+                    done();
+                } catch (e) { done(e); }
+            });
+            n1.receive({ topic: "completed" });
         });
     });
 

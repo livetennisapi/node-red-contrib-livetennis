@@ -27,17 +27,17 @@ or via the editor's *Manage palette* menu.
 
 ## Operations
 
-| Operation | Endpoint | Parameters |
-|---|---|---|
-| `live` | `GET /matches?status=live` | `tour`, `limit`, `offset` |
-| `upcoming` | `GET /matches?status=upcoming` | `tour`, `limit`, `offset` |
-| `completed` | `GET /matches?status=completed` | `tour`, `limit`, `offset` |
-| `match` | `GET /matches/{id}` | `matchId` |
-| `score` | `GET /matches/{id}/score` | `matchId` |
-| `player_search` | `GET /players?search=` | `search`, `limit`, `offset` |
-| `player` | `GET /players/{id}` | `playerId` |
-| `fixtures` | `GET /fixtures` | `tour`, `limit`, `offset` |
-| `health` | `GET /health` | — (no auth) |
+| Operation | Endpoint | Parameters | Tier |
+|---|---|---|---|
+| `live` | `GET /matches?status=live` | `tour`, `limit`, `offset` | FREE |
+| `upcoming` | `GET /matches?status=upcoming` | `tour`, `limit`, `offset` | FREE |
+| `completed` | `GET /matches?status=completed` | `tour`, `limit`, `offset` | **BASIC or any History plan** — 403 `upgrade_required` on a FREE key |
+| `match` | `GET /matches/{id}` | `matchId` | FREE (including a completed match by id) |
+| `score` | `GET /matches/{id}/score` | `matchId` | FREE |
+| `player_search` | `GET /players?search=` | `search`, `limit`, `offset` | FREE |
+| `player` | `GET /players/{id}` | `playerId` | FREE |
+| `fixtures` | `GET /fixtures` | `tour`, `limit`, `offset` | FREE |
+| `health` | `GET /health` | — (no auth) | — |
 
 `tour` is one of `atp`, `wta`, `challenger`, `itf`, `juniors` (each value covers
 its singles **and** doubles draws).
@@ -81,9 +81,14 @@ Failures are raised via `node.error(err, msg)` — catch them with a **catch**
 node. Messages are actionable:
 
 - **401** — key missing, unknown or disabled (with the free-signup link)
-- **403** — the endpoint is above your plan tier (`upgrade_required`); only
-  match events, markets and model analysis are gated — everything this node's
-  default operations use is on the FREE tier
+- **403** — the endpoint is above your plan tier (`upgrade_required`). The
+  node's default operation (`live`) — and every operation except `completed` —
+  is on the FREE tier. Bulk completed-match listings (the `completed`
+  operation) need the **BASIC** tier ($9.99/mo) or **any History plan** —
+  upgrade at <https://livetennisapi.com/subscribe/upgrade>. (Fetching a single
+  completed match by id via `match` stays FREE.) Match events and markets
+  need PRO; model analysis needs ULTRA — those are embeds on `match` detail,
+  present only when your key unlocks them.
 - **429** — rate limit reached, with the `Retry-After` hint
 
 ## Example

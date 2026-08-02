@@ -1,6 +1,6 @@
 {
   "name": "@livetennisapi/node-red-contrib-livetennis",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Node-RED nodes for the Live Tennis API — live scores, matches, players and fixtures (ATP, WTA, Challenger, ITF, juniors)",
   "license": "MIT",
   "keywords": [
@@ -41,6 +41,7 @@
     "nodes",
     "examples",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "devDependencies": {
