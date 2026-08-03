@@ -141,6 +141,10 @@ Steps per <https://flows.nodered.org/add/node> (read 2026-07-24):
    fix any ❌ items and use the *request refresh* link on the node's page after
    publishing a fix.
 
+## Affiliate program
+
+Know developers who need tennis data? The [affiliate program](https://affiliates.livetennisapi.com/program) pays 51% recurring commission for the life of every referred subscription — 30-day cookie, and the people you refer get 10% off.
+
 ## License
 
 MIT
