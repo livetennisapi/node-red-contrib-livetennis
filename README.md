@@ -4,8 +4,10 @@ Node-RED nodes for the [Live Tennis API](https://livetennisapi.com) — real-tim
 tennis scores, matches, players and fixtures across **ATP, WTA, Challenger, ITF
 and junior** tours.
 
-- Free tier: **1000 requests/day, 30/minute, no card** —
-  [get a key](https://livetennisapi.com/subscribe/free)
+- Free tier: **100 requests/day, 30/minute, no card** —
+  [get a key](https://livetennisapi.com/subscribe/free). That sustains one
+  poll every 15 minutes (96/day); faster polling needs Basic
+  ($9.99 — 1,000/day, enough for ~90-second polling).
 - API reference: <https://docs.livetennisapi.com>
 
 ## Install
@@ -96,11 +98,12 @@ node. Messages are actionable:
 An importable example lives under *Import → Examples →
 @livetennisapi/node-red-contrib-livetennis* once the package is installed
 (`examples/Live Tennis Quickstart.json`): an inject node polls `live` every
-2 minutes (720 req/day — inside the free tier) into a debug node.
+15 minutes (96 req/day — inside the free tier's 100/day cap, with no room for
+a second polling node; poll faster on Basic) into a debug node.
 
 ```json
 [
-    {"id":"lt-inject","type":"inject","name":"every 2 min","props":[{"p":"payload"}],"repeat":"120","once":true,"onceDelay":0.1,"topic":"","payload":"","payloadType":"date","x":140,"y":100,"wires":[["lt-query"]]},
+    {"id":"lt-inject","type":"inject","name":"every 15 min","props":[{"p":"payload"}],"repeat":"900","once":true,"onceDelay":0.1,"topic":"","payload":"","payloadType":"date","x":140,"y":100,"wires":[["lt-query"]]},
     {"id":"lt-query","type":"live tennis","name":"live matches","server":"lt-config","operation":"live","tour":"","limit":"20","matchId":"","playerId":"","search":"","x":340,"y":100,"wires":[["lt-debug"]]},
     {"id":"lt-debug","type":"debug","name":"matches","active":true,"tosidebar":true,"complete":"payload","targetType":"msg","x":540,"y":100,"wires":[]},
     {"id":"lt-config","type":"livetennis-config","name":"Live Tennis API","baseUrl":"https://api.livetennisapi.com/api/public/v1"}

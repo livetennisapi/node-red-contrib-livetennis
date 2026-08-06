@@ -109,7 +109,7 @@ function friendlyHttpError(status, bodyText, retryAfter, operation) {
     if (status === 429) {
         const hint = retryAfter ? ` — retry in ~${retryAfter}s` : "";
         return new LiveTennisError(
-            `Live Tennis API: rate limit reached (429)${hint}. Free tier allows 1000 requests/day, 30/minute.`,
+            `Live Tennis API: rate limit reached (429)${hint}. Free tier allows 100 requests/day, 30/minute.`,
             status, body
         );
     }
