@@ -7,28 +7,40 @@
  * recorded fixtures with no live network. The fetch implementation is
  * injectable (`fetchImpl`) for exactly that reason.
  *
- * API contract (openapi.yaml, verified 2026-07-24):
+ * API contract (openapi.yaml, verified 2026-08-07):
  *  - base URL https://api.livetennisapi.com/api/public/v1
  *  - auth via `X-API-Key` header (Bearer also accepted)
  *  - list endpoints return {data, meta}; single resources return the object
  *  - score.server is nullable; score.points are STRINGS ("0","15","40","A");
  *    score.games is per-player growing per-set arrays
  *  - a 403 means the endpoint is above the key's tier (upgrade_required)
+ *  - list filters: `player` is repeatable (max 50 ids), `country` is a
+ *    lowercase 3-letter IOC-style code, `from`/`to` are play dates; an
+ *    unknown filter VALUE is a 400 (never silently ignored)
  */
 
 const DEFAULT_BASE_URL = "https://api.livetennisapi.com/api/public/v1";
 const DEFAULT_TIMEOUT_MS = 15000;
 
+// Filters shared by the /matches list operations.
+const MATCH_LIST_QUERY = ["tour", "player", "country", "from", "to", "limit", "offset"];
+
 // operation -> request description
 const OPERATIONS = {
-    live: { path: "/matches", fixedQuery: { status: "live" }, query: ["tour", "limit", "offset"], list: "matches" },
-    upcoming: { path: "/matches", fixedQuery: { status: "upcoming" }, query: ["tour", "limit", "offset"], list: "matches" },
-    completed: { path: "/matches", fixedQuery: { status: "completed" }, query: ["tour", "limit", "offset"], list: "matches" },
+    live: { path: "/matches", fixedQuery: { status: "live" }, query: MATCH_LIST_QUERY, list: "matches" },
+    upcoming: { path: "/matches", fixedQuery: { status: "upcoming" }, query: MATCH_LIST_QUERY, list: "matches" },
+    completed: { path: "/matches", fixedQuery: { status: "completed" }, query: MATCH_LIST_QUERY, list: "matches" },
     match: { path: (p) => `/matches/${encodeURIComponent(p.matchId)}`, requires: ["matchId"], single: "match" },
     score: { path: (p) => `/matches/${encodeURIComponent(p.matchId)}/score`, requires: ["matchId"], single: "score" },
+    statistics: { path: (p) => `/matches/${encodeURIComponent(p.matchId)}/statistics`, requires: ["matchId"], single: "statistics" },
     player_search: { path: "/players", query: ["search", "limit", "offset"], list: "players" },
     player: { path: (p) => `/players/${encodeURIComponent(p.playerId)}`, requires: ["playerId"], single: "player" },
     fixtures: { path: "/fixtures", query: ["tour", "limit", "offset"], list: "fixtures" },
+    h2h: { path: "/h2h", requires: ["p1", "p2"], query: ["p1", "p2"], single: "h2h" },
+    archive_matches: { path: "/history/archive/matches", query: ["tour", "name", "from", "to", "round", "level", "limit", "offset"], list: "archive_matches" },
+    archive_players: { path: "/history/archive/players", query: ["name", "tour", "limit", "offset"], list: "archive_players" },
+    archive_career: { path: "/history/archive/career", requires: ["name"], query: ["name"], single: "archive_career" },
+    rankings: { path: "/rankings", query: ["player", "system", "as_of", "limit", "offset"], list: "rankings" },
     health: { path: "/health", noAuth: true, single: "health" }
 };
 
@@ -65,7 +77,11 @@ function buildRequest(operation, params, apiKey, baseUrl) {
     }
     for (const k of op.query || []) {
         const v = params[k];
-        if (v !== undefined && v !== null && v !== "") {
+        if (v === undefined || v === null || v === "") { continue; }
+        if (Array.isArray(v)) {
+            // repeatable parameters (player ids, ranking systems)
+            for (const item of v) { url.searchParams.append(k, String(item)); }
+        } else {
             url.searchParams.set(k, String(v));
         }
     }
@@ -79,10 +95,20 @@ function buildRequest(operation, params, apiKey, baseUrl) {
     return { url: url.toString(), headers };
 }
 
+// operation -> what a 403 on it means (mirrors the tier notes in the node help)
+const TIER_WALLS = {
+    completed: "Completed-match listings need the BASIC tier ($9.99/mo) or any History plan",
+    h2h: "Head-to-head records need the BASIC tier ($9.99/mo) or any History plan",
+    archive_matches: "The 1968–2022 results archive needs the BASIC tier ($9.99/mo) or any History plan",
+    archive_players: "The 1968–2022 results archive needs the BASIC tier ($9.99/mo) or any History plan",
+    archive_career: "The 1968–2022 results archive needs the BASIC tier ($9.99/mo) or any History plan",
+    rankings: "Rankings listings need the PRO tier ($29.99/mo); per-player as-of records need ULTRA ($99.99/mo)",
+    statistics: "Match statistics need the ULTRA tier ($99.99/mo)"
+};
+
 /**
  * Map an HTTP failure to a friendly, actionable error. The optional
- * `operation` sharpens the 403: bulk completed paging is the only operation
- * of this node gated behind a paid tier.
+ * `operation` sharpens the 403 with the exact tier that unlocks it.
  */
 function friendlyHttpError(status, bodyText, retryAfter, operation) {
     let body;
@@ -95,9 +121,9 @@ function friendlyHttpError(status, bodyText, retryAfter, operation) {
         );
     }
     if (status === 403) {
-        if (operation === "completed") {
+        if (TIER_WALLS[operation]) {
             return new LiveTennisError(
-                `Live Tennis API: Completed-match listings need the BASIC tier ($9.99/mo) or any History plan — upgrade at https://livetennisapi.com/subscribe/upgrade (403${apiError})`,
+                `Live Tennis API: ${TIER_WALLS[operation]} — upgrade at https://livetennisapi.com/subscribe/upgrade (403${apiError})`,
                 status, body
             );
         }
@@ -107,9 +133,22 @@ function friendlyHttpError(status, bodyText, retryAfter, operation) {
         );
     }
     if (status === 429) {
+        if (body && body.error === "abuse_throttled") {
+            // 24h block for clients that keep hammering after the quota is spent.
+            const until = body.retry_at_epoch
+                ? ` Blocked until ${new Date(body.retry_at_epoch * 1000).toISOString()} (retry_at_epoch ${body.retry_at_epoch}).`
+                : "";
+            return new LiveTennisError(
+                `Live Tennis API: abuse throttled (429 abuse_throttled) — this key kept requesting long after its quota was spent, so it is blocked for 24 hours.${until} Fix the retry loop: honour Retry-After and stop polling once a 429 arrives.`,
+                status, body
+            );
+        }
         const hint = retryAfter ? ` — retry in ~${retryAfter}s` : "";
+        const daily = body && body.scope === "day" && body.resets_at
+            ? ` Daily quota resets at ${body.resets_at}.`
+            : "";
         return new LiveTennisError(
-            `Live Tennis API: rate limit reached (429)${hint}. Free tier allows 100 requests/day, 30/minute.`,
+            `Live Tennis API: rate limit reached (429)${hint}.${daily} Free tier allows 100 requests/day, 30/minute.`,
             status, body
         );
     }
@@ -181,13 +220,15 @@ function shapePayload(operation, json) {
     if (op.list === "players") {
         return { payload: (json.data || []).map(flattenPlayer), meta: json.meta };
     }
-    if (op.list === "fixtures") {
+    if (op.list) {
+        // fixtures / archive rows / rankings: already flat, pass rows through
         return { payload: json.data || [], meta: json.meta };
     }
     if (op.single === "match") {
         return { payload: flattenMatch(json) };
     }
-    // score / player / health: already a single flat-ish object
+    // score / player / statistics / h2h / archive_career / health:
+    // a single object whose shape is the endpoint's own contract
     return { payload: json };
 }
 

@@ -11,10 +11,19 @@
             server: { value: "", type: "livetennis-config", required: true },
             operation: { value: "live", required: true },
             tour: { value: "" },
+            player: { value: "" },
+            country: { value: "" },
+            from: { value: "" },
+            to: { value: "" },
             limit: { value: "", validate: RED.validators.number(true) },
             matchId: { value: "", validate: RED.validators.number(true) },
             playerId: { value: "", validate: RED.validators.number(true) },
-            search: { value: "" }
+            search: { value: "" },
+            p1: { value: "" },
+            p2: { value: "" },
+            playerName: { value: "" },
+            system: { value: "" },
+            asOf: { value: "" }
         },
         label: function () {
             return this.name || "live tennis: " + (this.operation || "live");
@@ -22,11 +31,21 @@
         oneditprepare: function () {
             // show only the parameter rows that apply to the chosen operation
             const rows = {
-                tour: ["live", "upcoming", "completed", "fixtures"],
-                limit: ["live", "upcoming", "completed", "player_search", "fixtures"],
-                matchId: ["match", "score"],
+                tour: ["live", "upcoming", "completed", "fixtures", "archive_matches", "archive_players"],
+                player: ["live", "upcoming", "completed", "rankings"],
+                country: ["live", "upcoming", "completed"],
+                from: ["live", "upcoming", "completed", "archive_matches"],
+                to: ["live", "upcoming", "completed", "archive_matches"],
+                limit: ["live", "upcoming", "completed", "player_search", "fixtures",
+                    "archive_matches", "archive_players", "rankings"],
+                matchId: ["match", "score", "statistics"],
                 playerId: ["player"],
-                search: ["player_search"]
+                search: ["player_search"],
+                p1: ["h2h"],
+                p2: ["h2h"],
+                playerName: ["archive_matches", "archive_players", "archive_career"],
+                system: ["rankings"],
+                asOf: ["rankings"]
             };
             function refresh() {
                 const op = $("#node-input-operation").val();
@@ -57,9 +76,15 @@
             <option value="completed">Completed matches (BASIC or any History plan)</option>
             <option value="match">Match by id</option>
             <option value="score">Match score by id</option>
+            <option value="statistics">Match statistics by id (ULTRA)</option>
             <option value="player_search">Player search</option>
             <option value="player">Player by id</option>
             <option value="fixtures">Fixtures</option>
+            <option value="h2h">Head-to-head (BASIC or any History plan)</option>
+            <option value="archive_matches">Archive matches 1968–2022 (BASIC or any History plan)</option>
+            <option value="archive_players">Archive player bios (BASIC or any History plan)</option>
+            <option value="archive_career">Archive career aggregates (BASIC or any History plan)</option>
+            <option value="rankings">Rankings (PRO listing / ULTRA per-player)</option>
             <option value="health">API health</option>
         </select>
     </div>
@@ -73,6 +98,22 @@
             <option value="itf">ITF</option>
             <option value="juniors">Juniors</option>
         </select>
+    </div>
+    <div class="form-row" id="form-row-player">
+        <label for="node-input-player"><i class="fa fa-user"></i> Player ids</label>
+        <input type="text" id="node-input-player" placeholder="e.g. 678 or 678,679 (max 50)">
+    </div>
+    <div class="form-row" id="form-row-country">
+        <label for="node-input-country"><i class="fa fa-flag"></i> Country</label>
+        <input type="text" id="node-input-country" placeholder="3-letter IOC code, e.g. ned">
+    </div>
+    <div class="form-row" id="form-row-from">
+        <label for="node-input-from"><i class="fa fa-calendar"></i> From</label>
+        <input type="text" id="node-input-from" placeholder="YYYY-MM-DD">
+    </div>
+    <div class="form-row" id="form-row-to">
+        <label for="node-input-to"><i class="fa fa-calendar"></i> To</label>
+        <input type="text" id="node-input-to" placeholder="YYYY-MM-DD">
     </div>
     <div class="form-row" id="form-row-limit">
         <label for="node-input-limit"><i class="fa fa-sort-numeric-asc"></i> Limit</label>
@@ -90,6 +131,34 @@
         <label for="node-input-search"><i class="fa fa-search"></i> Search</label>
         <input type="text" id="node-input-search" placeholder="player name, e.g. alcaraz">
     </div>
+    <div class="form-row" id="form-row-p1">
+        <label for="node-input-p1"><i class="fa fa-user"></i> Player 1</label>
+        <input type="text" id="node-input-p1" placeholder="name fragment, min 3 chars, e.g. federer">
+    </div>
+    <div class="form-row" id="form-row-p2">
+        <label for="node-input-p2"><i class="fa fa-user"></i> Player 2</label>
+        <input type="text" id="node-input-p2" placeholder="name fragment, min 3 chars, e.g. nadal">
+    </div>
+    <div class="form-row" id="form-row-playerName">
+        <label for="node-input-playerName"><i class="fa fa-user"></i> Name</label>
+        <input type="text" id="node-input-playerName" placeholder="name fragment, min 3 chars">
+    </div>
+    <div class="form-row" id="form-row-system">
+        <label for="node-input-system"><i class="fa fa-list-ol"></i> System</label>
+        <select id="node-input-system" style="width:70%">
+            <option value="">All systems (per-player mode)</option>
+            <option value="atp">ATP</option>
+            <option value="wta">WTA</option>
+            <option value="itf_jt">ITF juniors</option>
+            <option value="itf_mt">ITF men</option>
+            <option value="itf_wt">ITF women</option>
+            <option value="utr">UTR (per-player only — no listing)</option>
+        </select>
+    </div>
+    <div class="form-row" id="form-row-asOf">
+        <label for="node-input-asOf"><i class="fa fa-calendar"></i> As of</label>
+        <input type="text" id="node-input-asOf" placeholder="YYYY-MM-DD (empty = latest)">
+    </div>
     <div class="form-tips">
         <b>Tip:</b> every setting can be overridden per message — see the node help.
     </div>
@@ -97,24 +166,32 @@
 
 <script type="text/html" data-help-name="live tennis">
     <p>Queries the <a href="https://livetennisapi.com">Live Tennis API</a> for live,
-       upcoming and completed matches, scores, players and fixtures across ATP, WTA,
-       Challenger, ITF and junior tours.</p>
+       upcoming and completed matches, scores, match statistics, players, fixtures,
+       head-to-head records, the 1968–2022 results archive and point-in-time
+       rankings across ATP, WTA, Challenger, ITF and junior tours.</p>
 
     <h3>Inputs</h3>
     <dl class="message-properties">
         <dt class="optional">topic <span class="property-type">string</span></dt>
         <dd>overrides the configured operation: <code>live</code>, <code>upcoming</code>,
             <code>completed</code>, <code>match</code>, <code>score</code>,
-            <code>player_search</code>, <code>player</code>, <code>fixtures</code>
-            or <code>health</code>.</dd>
+            <code>statistics</code>, <code>player_search</code>, <code>player</code>,
+            <code>fixtures</code>, <code>h2h</code>, <code>archive_matches</code>,
+            <code>archive_players</code>, <code>archive_career</code>,
+            <code>rankings</code> or <code>health</code>.</dd>
         <dt class="optional">payload <span class="property-type">object | number | string</span></dt>
         <dd>an object may carry <code>operation</code>, <code>tour</code>,
-            <code>limit</code>, <code>offset</code>, <code>matchId</code>,
-            <code>playerId</code> or <code>search</code> to override the node
-            configuration. A bare number is used as the match/player id for the
-            <code>match</code>, <code>score</code> and <code>player</code>
+            <code>player</code>, <code>country</code>, <code>from</code>,
+            <code>to</code>, <code>limit</code>, <code>offset</code>,
+            <code>matchId</code>, <code>playerId</code>, <code>search</code>,
+            <code>p1</code>, <code>p2</code>, <code>name</code>,
+            <code>system</code>, <code>as_of</code>, <code>round</code> or
+            <code>level</code> to override the node configuration. A bare number
+            is used as the match/player id for the <code>match</code>,
+            <code>score</code>, <code>statistics</code> and <code>player</code>
             operations; a bare string is the search text for
-            <code>player_search</code>.</dd>
+            <code>player_search</code> or the player name for
+            <code>archive_career</code>.</dd>
     </dl>
 
     <h3>Outputs</h3>
@@ -145,13 +222,44 @@
        is <code>null</code> by design; on lower tours <code>round</code> often
        restates the tournament name; <code>fixtures</code> rows are name-only
        (players not yet resolved to ids).</p>
-    <p>Tiers: every operation except <code>completed</code> is on the FREE
-       tier. Bulk completed-match listings (<code>completed</code>) need the
-       BASIC tier ($9.99/mo) or any History plan — a FREE key gets a 403
-       <code>upgrade_required</code>. Fetching a single completed match by id
-       via <code>match</code> stays free.</p>
+    <p>List filters (on <code>live</code>, <code>upcoming</code> and
+       <code>completed</code>): <code>player</code> — id, repeatable up to 50
+       (comma-separate in the editor field); <code>country</code> — lowercase
+       3-letter IOC-style code (e.g. <code>ned</code>, <code>sui</code> — not
+       ISO-3166); <code>from</code>/<code>to</code> — play dates
+       (<code>YYYY-MM-DD</code> or ISO-8601 UTC datetime); <code>tour</code> —
+       <code>atp</code>, <code>wta</code>, <code>challenger</code>,
+       <code>itf</code> or <code>juniors</code>. An unknown filter value is a
+       400 error, never silently ignored.</p>
+    <p>Archive operations query the licensed 1968–2022 results corpus — a
+       separate id space where people are keyed by <b>name</b> (fragment,
+       min 3 characters), not by player ids; the archive <code>tour</code>
+       filter accepts <code>atp</code> and <code>wta</code> only.
+       <code>h2h</code> spans both the archive and our own completed matches
+       (2023→now); an ambiguous name fragment is refused with the candidate
+       list rather than merging two people into one record.</p>
+    <p><code>rankings</code> has TWO modes: without <code>player</code> ids it
+       returns the full published table in rank order for exactly one
+       <code>system</code> (PRO); with <code>player</code> ids it returns
+       point-in-time per-player records at <code>as_of</code> (ULTRA).
+       <code>utr</code> is a rating, not a ranking — it has no listing mode.</p>
+    <p>Tiers: <code>live</code>, <code>upcoming</code>, <code>match</code>,
+       <code>score</code>, <code>player_search</code>, <code>player</code> and
+       <code>fixtures</code> are on the FREE tier. Bulk completed-match
+       listings (<code>completed</code>) need the BASIC tier ($9.99/mo) or any
+       History plan — a FREE key gets a 403 <code>upgrade_required</code>;
+       fetching a single completed match by id via <code>match</code> stays
+       free. <code>h2h</code>, <code>archive_matches</code>,
+       <code>archive_players</code> and <code>archive_career</code> also need
+       BASIC ($9.99/mo) or any History plan. <code>rankings</code> listings
+       need PRO ($29.99/mo); per-player rankings and <code>statistics</code>
+       need ULTRA ($99.99/mo).</p>
     <p>Failures are reported through <code>node.error</code> (catchable with a
-       <b>catch</b> node) with friendly messages: 401 bad key, 403 endpoint above
-       your plan tier (with the upgrade link for <code>completed</code>),
-       429 rate limit (with retry hint).</p>
+       <b>catch</b> node) with friendly messages: 401 bad key, 403 endpoint
+       above your plan tier (naming the exact tier that unlocks it), 429 rate
+       limit (with retry hint, and the daily reset instant when the day quota
+       is spent). A 429 <code>abuse_throttled</code> means the key kept
+       requesting long after its quota was spent and is blocked for 24 hours
+       (until <code>retry_at_epoch</code>) — fix the retry loop to honour
+       <code>Retry-After</code> instead of hammering.</p>
 </script>

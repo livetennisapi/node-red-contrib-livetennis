@@ -98,6 +98,75 @@ describe("client (pure)", function () {
         assert.match(err.message, /rate limit/);
         assert.match(err.message, /~42s/);
     });
+
+    it("builds a matches request with player/country/from/to filters", function () {
+        const { url } = client.buildRequest("upcoming", {
+            player: ["678", "679"], country: "ned", from: "2026-08-01", to: "2026-08-07"
+        }, "k");
+        assert.strictEqual(
+            url,
+            "https://api.livetennisapi.com/api/public/v1/matches?status=upcoming&player=678&player=679&country=ned&from=2026-08-01&to=2026-08-07"
+        );
+    });
+
+    it("h2h requires both names and builds /h2h", function () {
+        assert.throws(() => client.buildRequest("h2h", { p1: "federer" }, "k"), /needs p2/);
+        const { url } = client.buildRequest("h2h", { p1: "federer", p2: "nadal" }, "k");
+        assert.strictEqual(url, "https://api.livetennisapi.com/api/public/v1/h2h?p1=federer&p2=nadal");
+    });
+
+    it("archive_career requires a name; archive_matches takes round/level", function () {
+        assert.throws(() => client.buildRequest("archive_career", {}, "k"), /needs name/);
+        const { url } = client.buildRequest("archive_matches",
+            { tour: "atp", name: "borg", from: "1976-01-01", round: "F", level: "G" }, "k");
+        assert.strictEqual(
+            url,
+            "https://api.livetennisapi.com/api/public/v1/history/archive/matches?tour=atp&name=borg&from=1976-01-01&round=F&level=G"
+        );
+    });
+
+    it("rankings: listing mode with one system, per-player mode with repeated ids", function () {
+        const listing = client.buildRequest("rankings", { system: ["atp"], limit: 100 }, "k");
+        assert.strictEqual(listing.url, "https://api.livetennisapi.com/api/public/v1/rankings?system=atp&limit=100");
+        const perPlayer = client.buildRequest("rankings", { player: [678, 679], as_of: "2024-06-01" }, "k");
+        assert.strictEqual(perPlayer.url, "https://api.livetennisapi.com/api/public/v1/rankings?player=678&player=679&as_of=2024-06-01");
+    });
+
+    it("statistics builds the per-match path", function () {
+        const { url } = client.buildRequest("statistics", { matchId: 22227 }, "k");
+        assert.ok(url.endsWith("/matches/22227/statistics"));
+    });
+
+    it("maps tier-gated 403s to the exact unlocking tier", function () {
+        const body = JSON.stringify(fixture("error_403_markets").body);
+        assert.match(client.friendlyHttpError(403, body, null, "h2h").message,
+            /Head-to-head records need the BASIC tier \(\$9\.99\/mo\) or any History plan/);
+        assert.match(client.friendlyHttpError(403, body, null, "archive_matches").message,
+            /1968–2022 results archive needs the BASIC tier/);
+        assert.match(client.friendlyHttpError(403, body, null, "rankings").message,
+            /PRO tier \(\$29\.99\/mo\); per-player as-of records need ULTRA \(\$99\.99\/mo\)/);
+        assert.match(client.friendlyHttpError(403, body, null, "statistics").message,
+            /Match statistics need the ULTRA tier \(\$99\.99\/mo\)/);
+    });
+
+    it("maps a daily 429 with its resets_at instant", function () {
+        const err = client.friendlyHttpError(429, JSON.stringify({
+            error: "rate_limited", scope: "day", limit_per_day: 100, resets_at: "2026-08-07T21:00:00Z"
+        }), "3600");
+        assert.match(err.message, /2026-08-07T21:00:00Z/);
+        assert.match(err.message, /100 requests\/day/);
+    });
+
+    it("maps abuse_throttled to the fix-your-retry-loop message", function () {
+        const err = client.friendlyHttpError(429, JSON.stringify({
+            error: "abuse_throttled", retry_at_epoch: 1786600800
+        }), null);
+        assert.match(err.message, /abuse_throttled/);
+        assert.match(err.message, /retry_at_epoch 1786600800/);
+        assert.match(err.message, /blocked for 24 hours/);
+        assert.match(err.message, /Fix the retry loop/);
+        assert.strictEqual(err.status, 429);
+    });
 });
 
 // ------------------------------------------------------------- node in a flow
@@ -215,6 +284,53 @@ describe("live tennis node", function () {
                 } catch (e) { done(e); }
             });
             helper.getNode("n1").receive({ payload: { operation: "score", matchId: 22227 } });
+        });
+    });
+
+    it("h2h routes p1/p2 from the payload object (synthetic body)", function (done) {
+        helper.load([configNode, liveTennisNode], FLOW, CREDS, function () {
+            // minimal shape per the /h2h contract — not a recorded fixture
+            const calls = stubFetch(200, { p1: { name: "Roger Federer" }, p2: { name: "Rafael Nadal" }, totals: { p1: 16, p2: 24, undecided: 0 } });
+            const h1 = helper.getNode("h1");
+            h1.on("input", function (msg) {
+                try {
+                    assert.match(calls[0].url, /\/h2h\?p1=federer&p2=nadal$/);
+                    assert.strictEqual(msg.payload.totals.p2, 24);
+                    assert.strictEqual(msg.operation, "h2h");
+                    done();
+                } catch (e) { done(e); }
+            });
+            helper.getNode("n1").receive({ payload: { operation: "h2h", p1: "federer", p2: "nadal" } });
+        });
+    });
+
+    it("comma-separated player ids become repeated query parameters", function (done) {
+        helper.load([configNode, liveTennisNode], FLOW, CREDS, function () {
+            const calls = stubFetch(200, fixture("matches_upcoming"));
+            const h1 = helper.getNode("h1");
+            h1.on("input", function () {
+                try {
+                    assert.match(calls[0].url, /player=678&player=679/);
+                    done();
+                } catch (e) { done(e); }
+            });
+            helper.getNode("n1").receive({ topic: "upcoming", payload: { player: "678, 679" } });
+        });
+    });
+
+    it("scalar payload is the matchId for statistics", function (done) {
+        helper.load([configNode, liveTennisNode], FLOW, CREDS, function () {
+            // synthetic minimal body per the /matches/{id}/statistics contract
+            const calls = stubFetch(200, { coverage: "none", players: null });
+            const h1 = helper.getNode("h1");
+            h1.on("input", function (msg) {
+                try {
+                    assert.match(calls[0].url, /\/matches\/22227\/statistics$/);
+                    assert.strictEqual(msg.payload.players, null); // none = 200 + null players, not 404
+                    done();
+                } catch (e) { done(e); }
+            });
+            helper.getNode("n1").receive({ topic: "statistics", payload: 22227 });
         });
     });
 
