@@ -30,3 +30,6 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+      - name: Truth pins
+        run: sh scripts/truthcheck.sh
