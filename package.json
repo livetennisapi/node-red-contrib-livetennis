@@ -1,7 +1,7 @@
 {
   "name": "@livetennisapi/node-red-contrib-livetennis",
-  "version": "0.1.1",
-  "description": "Node-RED nodes for the Live Tennis API — live scores, matches, players and fixtures (ATP, WTA, Challenger, ITF, juniors)",
+  "version": "0.2.0",
+  "description": "Node-RED nodes for the Live Tennis API — live scores, matches, statistics, players, fixtures, head-to-head, the 1968–2022 results archive and rankings (ATP, WTA, Challenger, ITF and juniors)",
   "license": "MIT",
   "keywords": [
     "node-red",
@@ -24,6 +24,9 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "node-red": {
     "version": ">=3.0.0",
