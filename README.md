@@ -16,13 +16,17 @@ Challenger, ITF and juniors**.
 
 ## Install
 
-From your Node-RED user directory (typically `~/.node-red`):
+The npm package is pending its first publication, so until it lands install
+from source. From your Node-RED user directory (typically `~/.node-red`):
 
 ```bash
-npm install @livetennisapi/node-red-contrib-livetennis
+git clone https://github.com/livetennisapi/node-red-contrib-livetennis.git
+npm install ./node-red-contrib-livetennis
 ```
 
-or via the editor's *Manage palette* menu.
+then restart Node-RED. Once the package is on npm this becomes
+`npm install @livetennisapi/node-red-contrib-livetennis` (or the editor's
+*Manage palette* menu).
 
 ## Nodes
 
