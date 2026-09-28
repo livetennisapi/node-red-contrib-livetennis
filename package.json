@@ -12,7 +12,11 @@
     "wta",
     "livetennisapi"
   ],
-  "author": "Live Tennis API <hello@livetennisapi.com>",
+  "author": {
+    "name": "Synapse Research Ltd",
+    "email": "hello@livetennisapi.com",
+    "url": "https://synapsereality.io"
+  },
   "homepage": "https://livetennisapi.com",
   "repository": {
     "type": "git",
