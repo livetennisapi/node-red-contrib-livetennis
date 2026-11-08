@@ -52,7 +52,7 @@
     "LICENSE"
   ],
   "devDependencies": {
-    "eslint": "^9.0.0",
+    "eslint": "^10.14.0",
     "mocha": "^10.4.0",
     "node-red": "^5.0.9",
     "node-red-node-test-helper": "^0.3.4"
